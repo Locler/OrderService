@@ -49,6 +49,10 @@ public class OrderService {
 
 
         UserInfoDto user = userServiceClient.getUserByEmail(dto.getEmail(), authHeader);
+
+        System.out.println("User from UserService: " + user);
+        System.out.println("User ID: " + (user != null ? user.getId() : null));
+
         if (user == null || user.getEmail() == null) {
             throw new RuntimeException("Cannot retrieve user info from UserService");
         }

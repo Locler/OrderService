@@ -18,10 +18,13 @@ public class UserServiceClient {
 
     @CircuitBreaker(name = "userServiceCircuitBreaker", fallbackMethod = "fallbackUser")
     public UserInfoDto getUserByEmail(String email, String token) {
-        return webClientBuilder.build()
-                .get()
+        WebClient client = webClientBuilder
+                .baseUrl(userServiceBaseUrl)
+                .build();
+
+        return client.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path(userServiceBaseUrl + "/by-email")
+                        .path("/by-email")
                         .queryParam("email", email)
                         .build())
                 .header("Authorization", "Bearer " + token)
@@ -42,11 +45,12 @@ public class UserServiceClient {
 
     @CircuitBreaker(name = "userServiceCircuitBreaker", fallbackMethod = "fallbackUserById")
     public UserInfoDto getUserById(Long userId, String token) {
-        return webClientBuilder.build()
-                .get()
-                .uri(uriBuilder -> uriBuilder
-                        .path(userServiceBaseUrl + "/{id}")
-                        .build(userId))
+        WebClient client = webClientBuilder
+                .baseUrl(userServiceBaseUrl)
+                .build();
+
+        return client.get()
+                .uri("/{id}", userId)
                 .header("Authorization", "Bearer " + token)
                 .retrieve()
                 .bodyToMono(UserInfoDto.class)

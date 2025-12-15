@@ -9,7 +9,7 @@ import java.util.Set;
 public class AccessChecker {
 
     public void checkAdminAccess(Set<String> roles) {
-        if (roles == null || !roles.contains("ADMIN")) {
+        if (roles == null || !roles.contains("ROLE_ADMIN")) {
             throw new AccessDeniedException("Admin access required");
         }
     }
@@ -20,10 +20,10 @@ public class AccessChecker {
         }
 
         // ADMIN может всё
-        if (roles.contains("ADMIN")) return;
+        if (roles.contains("ROLE_ADMIN")) return;
 
         // USER только себя
-        if (roles.contains("USER") && targetUserId.equals(requesterId)) return;
+        if (roles.contains("ROLE_USER") && targetUserId.equals(requesterId)) return;
 
         throw new AccessDeniedException("Access denied");
     }

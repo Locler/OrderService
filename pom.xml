@@ -25,6 +25,12 @@
 
     <dependencies>
 
+        <!-- Security -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
         <!-- Resilience4j (circuit breaker + spring) -->
         <dependency>
             <groupId>io.github.resilience4j</groupId>

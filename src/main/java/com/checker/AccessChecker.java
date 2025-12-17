@@ -19,10 +19,8 @@ public class AccessChecker {
             throw new AccessDeniedException("Roles are missing");
         }
 
-        // ADMIN может всё
         if (roles.contains("ROLE_ADMIN")) return;
 
-        // USER только себя
         if (roles.contains("ROLE_USER") && targetUserId.equals(requesterId)) return;
 
         throw new AccessDeniedException("Access denied");

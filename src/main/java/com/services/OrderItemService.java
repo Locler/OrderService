@@ -16,8 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
@@ -29,14 +27,16 @@ public class OrderItemService {
     private final OrderRep orderRepository;
     private final ItemRep itemRepository;
     private final AccessChecker accessChecker;
+    private final OrderCalculationService orderCalculationService;
 
     @Autowired
-    public OrderItemService(OrderItemRep orderItemRepository, OrderItemMapper mapper, OrderRep orderRepository, ItemRep itemRepository, AccessChecker accessChecker) {
+    public OrderItemService(OrderItemRep orderItemRepository, OrderItemMapper mapper, OrderRep orderRepository, ItemRep itemRepository, AccessChecker accessChecker, OrderCalculationService orderCalculationService) {
         this.orderItemRepository = orderItemRepository;
         this.mapper = mapper;
         this.orderRepository = orderRepository;
         this.itemRepository = itemRepository;
         this.accessChecker = accessChecker;
+        this.orderCalculationService = orderCalculationService;
     }
 
     @Transactional
@@ -45,7 +45,6 @@ public class OrderItemService {
 
         Order order = orderRepository.findByIdAndDeletedFalse(dto.getOrderId())
                 .orElseThrow(() -> new NoSuchElementException("Order not found"));
-
         accessChecker.checkUserAccess(order.getUserId(), requesterId, roles);
 
         Item item = itemRepository.findById(dto.getItemId())
@@ -55,9 +54,11 @@ public class OrderItemService {
         orderItem.setOrder(order);
         orderItem.setItem(item);
 
-        orderItem = orderItemRepository.save(orderItem);
+        orderItemRepository.save(orderItem);
 
-        updateOrderTotalPrice(order);
+        // пересчёт totalPrice по сущности
+        orderCalculationService.updateTotal(order);
+
         return mapper.toDto(orderItem);
     }
 
@@ -67,13 +68,13 @@ public class OrderItemService {
 
         OrderItem orderItem = orderItemRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("OrderItem not found"));
-
         accessChecker.checkUserAccess(orderItem.getOrder().getUserId(), requesterId, roles);
 
         orderItem.setQuantity(dto.getQuantity());
-        orderItem = orderItemRepository.save(orderItem);
+        orderItemRepository.save(orderItem);
 
-        updateOrderTotalPrice(orderItem.getOrder());
+        orderCalculationService.updateTotal(orderItem.getOrder());
+
         return mapper.toDto(orderItem);
     }
 
@@ -81,13 +82,12 @@ public class OrderItemService {
     public void deleteOrderItem(Long id, Long requesterId, Set<String> roles) {
         OrderItem orderItem = orderItemRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("OrderItem not found"));
-
         accessChecker.checkUserAccess(orderItem.getOrder().getUserId(), requesterId, roles);
 
         Order order = orderItem.getOrder();
         orderItemRepository.delete(orderItem);
 
-        updateOrderTotalPrice(order);
+        orderCalculationService.updateTotal(order);
     }
 
     @Transactional(readOnly = true)
@@ -101,26 +101,18 @@ public class OrderItemService {
 
     @Transactional(readOnly = true)
     public Page<OrderItemDto> getAllOrderItems(Pageable pageable, Set<String> roles) {
-        if (!roles.contains("ADMIN")) {
+        if (!roles.contains("ROLE_ADMIN")) {
             throw new IllegalArgumentException("Only admin can list all order items");
         }
         return orderItemRepository.findAll(pageable).map(mapper::toDto);
     }
 
     private void validateCreateUpdateDto(OrderItemCreateUpdateDto dto) {
-        if (dto == null || dto.getQuantity() == null || dto.getQuantity() < 1 ||
-                dto.getOrderId() == null || dto.getOrderId() <= 0 ||
-                dto.getItemId() == null || dto.getItemId() <= 0) {
+        if (dto == null || dto.getQuantity() == null || dto.getQuantity() < 1
+                || dto.getOrderId() == null || dto.getOrderId() <= 0
+                || dto.getItemId() == null || dto.getItemId() <= 0) {
             throw new IllegalArgumentException("Invalid OrderItem DTO");
         }
     }
 
-    private void updateOrderTotalPrice(Order order) {
-        List<OrderItem> items = orderItemRepository.findAllByOrderId(order.getId());
-        BigDecimal total = items.stream()
-                .map(oi -> oi.getItem().getPrice().multiply(BigDecimal.valueOf(oi.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        order.setTotalPrice(total);
-        orderRepository.save(order);
-    }
 }

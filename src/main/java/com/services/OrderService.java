@@ -5,7 +5,10 @@ import com.dtos.UserInfoDto;
 import com.dtos.request.OrderCreateUpdateDto;
 import com.dtos.response.OrderWithUserDto;
 import com.entities.Order;
+import com.entities.OrderItem;
 import com.enums.OrderStatus;
+import com.fsm.OrderStatusTransitions;
+import com.mappers.OrderItemMapper;
 import com.mappers.OrderMapper;
 import com.repositories.OrderRep;
 import com.specifications.OrderServiceSpecifications;
@@ -16,7 +19,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -29,39 +31,73 @@ public class OrderService {
     private final OrderMapper mapper;
     private final UserServiceClient userServiceClient;
     private final AccessChecker accessChecker;
+    private final OrderItemMapper orderItemMapper;
+    private final OrderCalculationService orderCalculationService;
 
     @Autowired
-    public OrderService(OrderRep orderRepository, OrderMapper mapper, UserServiceClient userServiceClient, AccessChecker accessChecker) {
+    public OrderService(OrderRep orderRepository, OrderMapper mapper, UserServiceClient userServiceClient, AccessChecker accessChecker, OrderItemMapper orderItemMapper, OrderCalculationService orderCalculationService) {
         this.orderRepository = orderRepository;
         this.mapper = mapper;
         this.userServiceClient = userServiceClient;
         this.accessChecker = accessChecker;
+        this.orderItemMapper = orderItemMapper;
+        this.orderCalculationService = orderCalculationService;
     }
-
 
     @Transactional
     public OrderWithUserDto createOrder(OrderCreateUpdateDto dto, Long requesterId, Set<String> roles) {
-        // Проверка: USER может создавать только свои заказы
+
         accessChecker.checkUserAccess(requesterId, requesterId, roles);
 
-        if (dto == null || dto.getStatus() == null || dto.getEmail() == null || dto.getEmail().isBlank()) {
-            throw new IllegalArgumentException("Invalid order DTO");
-        }
-
-        // Получаем пользователя по email из UserService
-        UserInfoDto user = userServiceClient.getUserByEmail(dto.getEmail(), requesterId, roles);
-
-        if (user == null || !user.getActive()) {
+        UserInfoDto user = userServiceClient.getUserById(requesterId, requesterId, roles);
+        if (user == null || !Boolean.TRUE.equals(user.getActive())) {
             throw new IllegalStateException("Cannot create order for inactive or unknown user");
         }
 
-        Order order = mapper.fromCreateUpdateDto(dto);
-        order.setUserId(user.getId());
-        order.setDeleted(false);
-        order.setTotalPrice(BigDecimal.ZERO);
+        Order orderEntity = mapper.fromCreateUpdateDto(dto);
+        orderEntity.setUserId(user.getId());
+        orderEntity.setStatus(OrderStatus.NEW);
+        orderEntity.setDeleted(false);
 
-        order = orderRepository.save(order);
 
+        orderEntity = orderRepository.save(orderEntity);
+
+        List<OrderItem> items = orderItemMapper.fromDtoList(dto.getOrderItems());
+        for (OrderItem item : items) {
+            item.setOrder(orderEntity);
+        }
+        orderEntity.setOrderItems(items);
+
+        orderEntity = orderRepository.save(orderEntity);
+
+        // Пересчёт totalPrice
+        orderCalculationService.updateTotal(orderEntity);
+
+        return new OrderWithUserDto(mapper.toDto(orderEntity), user);
+    }
+
+    @Transactional
+    public OrderWithUserDto updateStatus(Long id, OrderStatus newStatus,
+                                         Long requesterId, Set<String> roles) {
+
+        Order order = orderRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new NoSuchElementException("Order not found"));
+
+        // Только ADMIN
+        accessChecker.checkAdminAccess(roles);
+
+        OrderStatus current = order.getStatus();
+
+        if (!OrderStatusTransitions.canTransition(current, newStatus)) {
+            throw new IllegalStateException(
+                    "Invalid status transition: " + current + " → " + newStatus
+            );
+        }
+
+        order.setStatus(newStatus);
+        orderRepository.save(order);
+
+        UserInfoDto user = userServiceClient.getUserById(order.getUserId(), requesterId, roles);
         return new OrderWithUserDto(mapper.toDto(order), user);
     }
 
@@ -85,10 +121,7 @@ public class OrderService {
         if (statuses != null && !statuses.isEmpty()) spec = spec.and(OrderServiceSpecifications.hasStatuses(statuses));
         if (start != null && end != null && !start.isAfter(end)) spec = spec.and(OrderServiceSpecifications.createdBetween(start, end));
 
-        // Ограничиваем обычного USER только своими заказами
-        if (!roles.contains("ADMIN")) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("userId"), requesterId));
-        }
+        accessChecker.checkAdminAccess(roles);
 
         Page<Order> page = orderRepository.findAll(spec, pageable);
 
@@ -100,16 +133,24 @@ public class OrderService {
 
     @Transactional
     public OrderWithUserDto updateOrder(Long id, OrderCreateUpdateDto dto, Long requesterId, Set<String> roles) {
-        Order order = orderRepository.findByIdAndDeletedFalse(id)
+
+        Order orderEntity = orderRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new NoSuchElementException("Order not found"));
+        accessChecker.checkUserAccess(orderEntity.getUserId(), requesterId, roles);
 
-        accessChecker.checkUserAccess(order.getUserId(), requesterId, roles);
+        orderEntity.getOrderItems().clear();
+        List<OrderItem> items = orderItemMapper.fromDtoList(dto.getOrderItems());
+        for (OrderItem item : items) {
+            item.setOrder(orderEntity);
+        }
+        orderEntity.setOrderItems(items);
 
-        order.setStatus(dto.getStatus());
-        order = orderRepository.save(order);
+        orderEntity = orderRepository.save(orderEntity);
 
-        UserInfoDto user = userServiceClient.getUserById(order.getUserId(), requesterId, roles);
-        return new OrderWithUserDto(mapper.toDto(order), user);
+        orderCalculationService.updateTotal(orderEntity);
+
+        UserInfoDto user = userServiceClient.getUserById(orderEntity.getUserId(), requesterId, roles);
+        return new OrderWithUserDto(mapper.toDto(orderEntity), user);
     }
 
     @Transactional

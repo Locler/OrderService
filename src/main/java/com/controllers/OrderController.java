@@ -1,6 +1,7 @@
 package com.controllers;
 
 import com.dtos.request.OrderCreateUpdateDto;
+import com.dtos.request.OrderStatusUpdateDto;
 import com.dtos.response.OrderWithUserDto;
 import com.enums.OrderStatus;
 import com.services.OrderService;
@@ -75,6 +76,17 @@ public class OrderController {
     ) {
         Set<String> roles = parseRoles(rolesHeader);
         return ResponseEntity.ok(orderService.updateOrder(id, dto, requesterId, roles));
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<OrderWithUserDto> updateOrderStatus(
+            @PathVariable Long id,
+            @RequestBody @Valid OrderStatusUpdateDto dto,
+            @RequestHeader("X-User-Id") Long requesterId,
+            @RequestHeader("X-User-Roles") String rolesHeader
+    ) {
+        Set<String> roles = parseRoles(rolesHeader);
+        return ResponseEntity.ok(orderService.updateStatus(id, dto.getStatus(), requesterId, roles));
     }
 
     @DeleteMapping("/{id}")

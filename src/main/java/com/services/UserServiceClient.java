@@ -4,8 +4,10 @@ import com.dtos.UserInfoDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.util.Set;
 
@@ -27,6 +29,14 @@ public class UserServiceClient {
                 .header("X-User-Id", requesterId.toString())
                 .header("X-User-Roles", String.join(",", roles))
                 .retrieve()
+                .onStatus(
+                        HttpStatusCode::isError,
+                        clientResponse -> clientResponse.bodyToMono(String.class)
+                                .map(errorBody -> {
+                                    System.out.println("UserService returned error: " + errorBody);
+                                    return new RuntimeException("UserService error: " + errorBody);
+                                })
+                )
                 .bodyToMono(UserInfoDto.class)
                 .block();
     }
@@ -43,18 +53,43 @@ public class UserServiceClient {
 
     @CircuitBreaker(name = "userServiceCircuitBreaker", fallbackMethod = "fallbackUserById")
     public UserInfoDto getUserById(Long userId, Long requesterId, Set<String> roles) {
-        WebClient client = webClientBuilder.baseUrl(userServiceBaseUrl).build();
+        try {
+            WebClient client = webClientBuilder
+                    .baseUrl(userServiceBaseUrl)
+                    .build();
 
-        return client.get()
-                .uri("/{id}", userId)
-                .header("X-User-Id", requesterId.toString())
-                .header("X-User-Roles", String.join(",", roles))
-                .retrieve()
-                .bodyToMono(UserInfoDto.class)
-                .block();
+            UserInfoDto user = client.get()
+                    .uri("/{id}", userId)
+                    .header("X-User-Id", requesterId.toString())
+                    .header("X-User-Roles", String.join(",", roles))
+                    .retrieve()
+                    .onStatus(
+                            HttpStatusCode::isError,
+                            clientResponse -> clientResponse.bodyToMono(String.class)
+                                    .map(errorBody -> {
+                                        System.out.println("UserService returned error: " + errorBody);
+                                        return new RuntimeException("UserService error: " + errorBody);
+                                    })
+                    )
+                    .bodyToMono(UserInfoDto.class)
+                    .block();
+
+            if (user == null) {
+                throw new IllegalStateException("User not found");
+            }
+
+            return user;
+
+        } catch (WebClientResponseException ex) {
+            // Любые реальные ошибки HTTP (5xx) → CircuitBreaker сработает
+            throw ex;
+        } catch (Exception ex) {
+            throw ex;
+        }
     }
 
     public UserInfoDto fallbackUserById(Long userId, Long requesterId, Set<String> roles, Throwable ex) {
+        // Fallback срабатывает только если сервис реально недоступен
         return UserInfoDto.builder()
                 .name("Unknown")
                 .surname("User")

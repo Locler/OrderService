@@ -3,13 +3,16 @@ package com.services;
 import com.checker.AccessChecker;
 import com.dtos.UserInfoDto;
 import com.dtos.request.OrderCreateUpdateDto;
+import com.dtos.response.OrderItemDto;
 import com.dtos.response.OrderWithUserDto;
+import com.entities.Item;
 import com.entities.Order;
 import com.entities.OrderItem;
 import com.enums.OrderStatus;
 import com.fsm.OrderStatusTransitions;
 import com.mappers.OrderItemMapper;
 import com.mappers.OrderMapper;
+import com.repositories.ItemRep;
 import com.repositories.OrderRep;
 import com.specifications.OrderServiceSpecifications;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -28,6 +32,7 @@ import java.util.Set;
 public class OrderService {
 
     private final OrderRep orderRepository;
+    private final ItemRep itemRepository;
     private final OrderMapper mapper;
     private final UserServiceClient userServiceClient;
     private final AccessChecker accessChecker;
@@ -35,8 +40,9 @@ public class OrderService {
     private final OrderCalculationService orderCalculationService;
 
     @Autowired
-    public OrderService(OrderRep orderRepository, OrderMapper mapper, UserServiceClient userServiceClient, AccessChecker accessChecker, OrderItemMapper orderItemMapper, OrderCalculationService orderCalculationService) {
+    public OrderService(OrderRep orderRepository, ItemRep itemRepository, OrderMapper mapper, UserServiceClient userServiceClient, AccessChecker accessChecker, OrderItemMapper orderItemMapper, OrderCalculationService orderCalculationService) {
         this.orderRepository = orderRepository;
+        this.itemRepository = itemRepository;
         this.mapper = mapper;
         this.userServiceClient = userServiceClient;
         this.accessChecker = accessChecker;
@@ -50,6 +56,8 @@ public class OrderService {
         accessChecker.checkUserAccess(requesterId, requesterId, roles);
 
         UserInfoDto user = userServiceClient.getUserById(requesterId, requesterId, roles);
+        System.out.println("USER FROM USER SERVICE: " + user);
+
         if (user == null || !Boolean.TRUE.equals(user.getActive())) {
             throw new IllegalStateException("Cannot create order for inactive or unknown user");
         }
@@ -59,19 +67,15 @@ public class OrderService {
         orderEntity.setStatus(OrderStatus.NEW);
         orderEntity.setDeleted(false);
 
-
-        orderEntity = orderRepository.save(orderEntity);
-
         List<OrderItem> items = orderItemMapper.fromDtoList(dto.getOrderItems());
         for (OrderItem item : items) {
-            item.setOrder(orderEntity);
+            item.setOrder(orderEntity); // связываем с заказом
         }
         orderEntity.setOrderItems(items);
 
-        orderEntity = orderRepository.save(orderEntity);
-
-        // Пересчёт totalPrice
         orderCalculationService.updateTotal(orderEntity);
+
+        orderEntity = orderRepository.save(orderEntity);
 
         return new OrderWithUserDto(mapper.toDto(orderEntity), user);
     }
@@ -136,20 +140,37 @@ public class OrderService {
 
         Order orderEntity = orderRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new NoSuchElementException("Order not found"));
+
         accessChecker.checkUserAccess(orderEntity.getUserId(), requesterId, roles);
 
-        orderEntity.getOrderItems().clear();
-        List<OrderItem> items = orderItemMapper.fromDtoList(dto.getOrderItems());
-        for (OrderItem item : items) {
-            item.setOrder(orderEntity);
+        // Подгружаем новые позиции
+        List<OrderItem> newItems = new ArrayList<>();
+        for (OrderItemDto dtoItem : dto.getOrderItems()) {
+            OrderItem orderItem = new OrderItem();
+            orderItem.setQuantity(dtoItem.getQuantity());
+
+            Item item = itemRepository.findById(dtoItem.getItemId())
+                    .orElseThrow(() -> new IllegalStateException("Item not found: " + dtoItem.getItemId()));
+            orderItem.setItem(item);
+
+            newItems.add(orderItem);
         }
-        orderEntity.setOrderItems(items);
 
-        orderEntity = orderRepository.save(orderEntity);
+        // Очищаем старые позиции и добавляем новые в существующую коллекцию
+        orderEntity.getOrderItems().clear();
+        for (OrderItem orderItem : newItems) {
+            orderItem.setOrder(orderEntity);
+            orderEntity.getOrderItems().add(orderItem);
+        }
 
+        // Пересчёт totalPrice
         orderCalculationService.updateTotal(orderEntity);
 
+        // Сохраняем заказ
+        orderEntity = orderRepository.save(orderEntity);
+
         UserInfoDto user = userServiceClient.getUserById(orderEntity.getUserId(), requesterId, roles);
+
         return new OrderWithUserDto(mapper.toDto(orderEntity), user);
     }
 

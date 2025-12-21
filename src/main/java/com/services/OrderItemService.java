@@ -45,6 +45,7 @@ public class OrderItemService {
 
         Order order = orderRepository.findByIdAndDeletedFalse(dto.getOrderId())
                 .orElseThrow(() -> new NoSuchElementException("Order not found"));
+
         accessChecker.checkUserAccess(order.getUserId(), requesterId, roles);
 
         Item item = itemRepository.findById(dto.getItemId())
@@ -68,6 +69,7 @@ public class OrderItemService {
 
         OrderItem orderItem = orderItemRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("OrderItem not found"));
+
         accessChecker.checkUserAccess(orderItem.getOrder().getUserId(), requesterId, roles);
 
         orderItem.setQuantity(dto.getQuantity());
@@ -82,6 +84,7 @@ public class OrderItemService {
     public void deleteOrderItem(Long id, Long requesterId, Set<String> roles) {
         OrderItem orderItem = orderItemRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("OrderItem not found"));
+
         accessChecker.checkUserAccess(orderItem.getOrder().getUserId(), requesterId, roles);
 
         Order order = orderItem.getOrder();
@@ -96,14 +99,13 @@ public class OrderItemService {
                 .orElseThrow(() -> new NoSuchElementException("OrderItem not found"));
 
         accessChecker.checkUserAccess(orderItem.getOrder().getUserId(), requesterId, roles);
+
         return mapper.toDto(orderItem);
     }
 
     @Transactional(readOnly = true)
     public Page<OrderItemDto> getAllOrderItems(Pageable pageable, Set<String> roles) {
-        if (!roles.contains("ROLE_ADMIN")) {
-            throw new IllegalArgumentException("Only admin can list all order items");
-        }
+        accessChecker.checkAdminAccess(roles);
         return orderItemRepository.findAll(pageable).map(mapper::toDto);
     }
 

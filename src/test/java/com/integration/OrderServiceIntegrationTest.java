@@ -70,7 +70,7 @@ class OrderServiceIntegrationTest {
     }
 
     @Test
-    void createOrder_success() {
+    void createOrder() {
         OrderCreateUpdateDto dto = new OrderCreateUpdateDto();
         dto.setEmail("test@example.com");
         dto.setStatus(OrderStatus.NEW);
@@ -81,7 +81,7 @@ class OrderServiceIntegrationTest {
     }
 
     @Test
-    void getOrderById_success() {
+    void getOrderById() {
         Order order = new Order();
         order.setStatus(OrderStatus.NEW);
         order.setUserId(1L);
@@ -94,7 +94,7 @@ class OrderServiceIntegrationTest {
     }
 
     @Test
-    void updateOrder_success() {
+    void updateOrder() {
         Order order = new Order();
         order.setStatus(OrderStatus.NEW);
         order.setUserId(1L);
@@ -111,7 +111,7 @@ class OrderServiceIntegrationTest {
     }
 
     @Test
-    void deleteOrder_success() {
+    void deleteOrder() {
         Order order = new Order();
         order.setStatus(OrderStatus.NEW);
         order.setUserId(1L);

@@ -34,7 +34,7 @@ class ItemServiceTest {
     }
 
     @Test
-    void createItem_success() {
+    void createItem() {
         ItemCreateUpdateDto dto = ItemCreateUpdateDto.builder()
                 .name("Phone")
                 .price(BigDecimal.valueOf(100))
@@ -57,7 +57,7 @@ class ItemServiceTest {
     }
 
     @Test
-    void createItem_duplicateName_throws() {
+    void createItemDuplicateName() {
         ItemCreateUpdateDto dto = ItemCreateUpdateDto.builder()
                 .name("Phone")
                 .price(BigDecimal.valueOf(100))
@@ -73,7 +73,7 @@ class ItemServiceTest {
     }
 
     @Test
-    void getItem_found() {
+    void getItem() {
         Item item = new Item();
         ItemDto dto = new ItemDto();
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
@@ -84,7 +84,7 @@ class ItemServiceTest {
     }
 
     @Test
-    void getItem_notFound_throws() {
+    void getItemNotFound() {
         when(itemRepository.findById(1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> itemService.getItem(1L))
                 .isInstanceOf(RuntimeException.class)
@@ -92,7 +92,7 @@ class ItemServiceTest {
     }
 
     @Test
-    void getAllItems_pagination() {
+    void getAllItems() {
         Item i1 = new Item(); i1.setName("a");
         Item i2 = new Item(); i2.setName("b");
         ItemDto d1 = new ItemDto();
@@ -111,7 +111,7 @@ class ItemServiceTest {
     }
 
     @Test
-    void updateItem_uniqueNameCheck_excludesSelf() {
+    void updateItemUniqueNameCheck() {
         Long id = 5L;
         Item existing = new Item();
         existing.setId(id);
@@ -136,7 +136,7 @@ class ItemServiceTest {
     }
 
     @Test
-    void updateItem_uniqueNameConflict_throws() {
+    void updateItemUniqueNameConflict() {
         Long id = 5L;
         Item existing = new Item();
         existing.setId(id);
@@ -157,7 +157,7 @@ class ItemServiceTest {
     }
 
     @Test
-    void deleteItem_success() {
+    void deleteItem() {
         Item item = new Item();
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         doNothing().when(itemRepository).delete(item);
@@ -168,7 +168,7 @@ class ItemServiceTest {
     }
 
     @Test
-    void deleteItem_notFound_throws() {
+    void deleteItem_notFound() {
         when(itemRepository.findById(10L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> itemService.deleteItem(10L))
                 .isInstanceOf(RuntimeException.class);

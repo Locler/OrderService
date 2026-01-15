@@ -104,7 +104,7 @@ class OrderItemServiceIntegrationTest {
     }
 
     @Test
-    void createOrderItem_success() {
+    void createOrderItem() {
         OrderItemCreateUpdateDto dto = new OrderItemCreateUpdateDto();
         dto.setOrderId(savedOrder.getId());
         dto.setItemId(savedItem.getId());
@@ -121,7 +121,7 @@ class OrderItemServiceIntegrationTest {
     }
 
     @Test
-    void updateOrderItem_success() {
+    void updateOrderItem() {
 
         OrderItemCreateUpdateDto dtoCreate = new OrderItemCreateUpdateDto();
         dtoCreate.setOrderId(savedOrder.getId());
@@ -143,7 +143,7 @@ class OrderItemServiceIntegrationTest {
     }
 
     @Test
-    void deleteOrderItem_success() {
+    void deleteOrderItem() {
 
         OrderItemCreateUpdateDto dtoCreate = new OrderItemCreateUpdateDto();
         dtoCreate.setOrderId(savedOrder.getId());

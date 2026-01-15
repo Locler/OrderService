@@ -2,7 +2,6 @@ package com.integration;
 
 import com.dtos.request.ItemCreateUpdateDto;
 import com.dtos.response.ItemDto;
-import com.repositories.ItemRep;
 import com.services.ItemService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,14 +32,14 @@ class ItemServiceIntegrationTest {
     }
 
     @Test
-    void getItem_success() {
+    void getItem() {
         ItemDto item = itemService.createItem(new ItemCreateUpdateDto("Test Item", BigDecimal.valueOf(50)));
         ItemDto read = itemService.getItem(item.getId());
         assertEquals("Test Item", read.getName());
     }
 
     @Test
-    void updateItem_success() {
+    void updateItem() {
         ItemDto item = itemService.createItem(new ItemCreateUpdateDto("Item 1", BigDecimal.valueOf(30)));
         ItemCreateUpdateDto dto = new ItemCreateUpdateDto("Item 2", BigDecimal.valueOf(60));
         ItemDto updated = itemService.updateItem(item.getId(), dto);
@@ -49,7 +48,7 @@ class ItemServiceIntegrationTest {
     }
 
     @Test
-    void deleteItem_success() {
+    void deleteItem() {
         ItemDto item = itemService.createItem(new ItemCreateUpdateDto("Item X", BigDecimal.valueOf(10)));
         itemService.deleteItem(item.getId());
         assertThrows(RuntimeException.class, () -> itemService.getItem(item.getId()));

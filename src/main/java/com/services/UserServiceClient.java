@@ -3,6 +3,7 @@ package com.services;
 import com.dtos.UserInfoDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Log4j2
 public class UserServiceClient {
 
     private final WebClient.Builder webClientBuilder;
@@ -67,8 +69,10 @@ public class UserServiceClient {
                             HttpStatusCode::isError,
                             clientResponse -> clientResponse.bodyToMono(String.class)
                                     .map(errorBody -> {
-                                        System.out.println("UserService returned error: " + errorBody);
-                                        return new RuntimeException("UserService error: " + errorBody);
+                                        log.info("UserService returned error: {}", errorBody);
+                                        return new RuntimeException(
+                                                "UserService error (status " + clientResponse.statusCode().value() + "): " + errorBody
+                                        );
                                     })
                     )
                     .bodyToMono(UserInfoDto.class)

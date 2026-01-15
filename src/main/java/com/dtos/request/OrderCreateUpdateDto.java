@@ -1,10 +1,9 @@
 package com.dtos.request;
-
-import com.enums.OrderStatus;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import com.dtos.response.OrderItemDto;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.*;
+
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -12,10 +11,6 @@ import lombok.*;
 @Builder
 public class OrderCreateUpdateDto {
 
-    @NotNull
-    private OrderStatus status;
-
-    @Email
-    @NotBlank
-    private String email;
+    @NotEmpty(message = "Order must contain at least one item")
+    private List<OrderItemDto> orderItems;
 }

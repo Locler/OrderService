@@ -1,5 +1,6 @@
 package com.services;
 
+import com.checker.AccessChecker;
 import com.dtos.request.OrderItemCreateUpdateDto;
 import com.dtos.response.OrderItemDto;
 import com.entities.Item;
@@ -15,9 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 @Service
 public class OrderItemService {
@@ -26,21 +26,27 @@ public class OrderItemService {
     private final OrderItemMapper mapper;
     private final OrderRep orderRepository;
     private final ItemRep itemRepository;
+    private final AccessChecker accessChecker;
+    private final OrderCalculationService orderCalculationService;
 
     @Autowired
-    public OrderItemService(OrderItemRep orderItemRepository, OrderItemMapper mapper, OrderRep orderRepository, ItemRep itemRepository) {
+    public OrderItemService(OrderItemRep orderItemRepository, OrderItemMapper mapper, OrderRep orderRepository, ItemRep itemRepository, AccessChecker accessChecker, OrderCalculationService orderCalculationService) {
         this.orderItemRepository = orderItemRepository;
         this.mapper = mapper;
         this.orderRepository = orderRepository;
         this.itemRepository = itemRepository;
+        this.accessChecker = accessChecker;
+        this.orderCalculationService = orderCalculationService;
     }
 
     @Transactional
-    public OrderItemDto createOrderItem(OrderItemCreateUpdateDto dto) {
+    public OrderItemDto createOrderItem(OrderItemCreateUpdateDto dto, Long requesterId, Set<String> roles) {
         validateCreateUpdateDto(dto);
 
         Order order = orderRepository.findByIdAndDeletedFalse(dto.getOrderId())
                 .orElseThrow(() -> new NoSuchElementException("Order not found"));
+
+        accessChecker.checkUserAccess(order.getUserId(), requesterId, roles);
 
         Item item = itemRepository.findById(dto.getItemId())
                 .orElseThrow(() -> new NoSuchElementException("Item not found"));
@@ -49,100 +55,66 @@ public class OrderItemService {
         orderItem.setOrder(order);
         orderItem.setItem(item);
 
-        orderItem = orderItemRepository.save(orderItem);
+        orderItemRepository.save(orderItem);
 
-        updateOrderTotalPrice(order);
+        // пересчёт totalPrice по сущности
+        orderCalculationService.updateTotal(order);
 
         return mapper.toDto(orderItem);
     }
 
     @Transactional
-    public OrderItemDto updateOrderItem(Long id, OrderItemCreateUpdateDto dto) {
-
-        if (id == null || id <= 0) {
-            throw new IllegalArgumentException("OrderItem id must be positive");
-        }
+    public OrderItemDto updateOrderItem(Long id, OrderItemCreateUpdateDto dto, Long requesterId, Set<String> roles) {
         validateCreateUpdateDto(dto);
 
         OrderItem orderItem = orderItemRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("OrderItem not found"));
 
+        accessChecker.checkUserAccess(orderItem.getOrder().getUserId(), requesterId, roles);
+
         orderItem.setQuantity(dto.getQuantity());
+        orderItemRepository.save(orderItem);
 
-        orderItem = orderItemRepository.save(orderItem);
-
-        updateOrderTotalPrice(orderItem.getOrder());
+        orderCalculationService.updateTotal(orderItem.getOrder());
 
         return mapper.toDto(orderItem);
     }
 
     @Transactional
-    public void deleteOrderItem(Long id) {
-
-        if (id == null || id <= 0) {
-            throw new IllegalArgumentException("OrderItem id must be positive");
-        }
-
+    public void deleteOrderItem(Long id, Long requesterId, Set<String> roles) {
         OrderItem orderItem = orderItemRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("OrderItem not found"));
 
-        Order order = orderItem.getOrder();
+        accessChecker.checkUserAccess(orderItem.getOrder().getUserId(), requesterId, roles);
 
+        Order order = orderItem.getOrder();
         orderItemRepository.delete(orderItem);
 
-        updateOrderTotalPrice(order);
+        orderCalculationService.updateTotal(order);
     }
 
     @Transactional(readOnly = true)
-    public OrderItemDto getOrderItemById(Long id) {
-
-        if (id == null || id <= 0) {
-            throw new IllegalArgumentException("OrderItem id must be positive");
-        }
-
+    public OrderItemDto getOrderItemById(Long id, Long requesterId, Set<String> roles) {
         OrderItem orderItem = orderItemRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("OrderItem not found"));
+
+        accessChecker.checkUserAccess(orderItem.getOrder().getUserId(), requesterId, roles);
 
         return mapper.toDto(orderItem);
     }
 
     @Transactional(readOnly = true)
-    public Page<OrderItemDto> getAllOrderItem(Pageable pageable) {
-
-        if (pageable == null) {
-            throw new IllegalArgumentException("Pageable must be provided");
-        }
-
-        return orderItemRepository.findAll(pageable)
-                .map(mapper::toDto);
+    public Page<OrderItemDto> getAllOrderItems(Pageable pageable, Set<String> roles) {
+        accessChecker.checkAdminAccess(roles);
+        return orderItemRepository.findAll(pageable).map(mapper::toDto);
     }
 
     private void validateCreateUpdateDto(OrderItemCreateUpdateDto dto) {
-
-        if (dto == null) {
-            throw new IllegalArgumentException("OrderItemCreateUpdateDto cannot be null");
-        }
-        if (dto.getQuantity() == null || dto.getQuantity() < 1) {
-            throw new IllegalArgumentException("Quantity must be >= 1");
-        }
-        if (dto.getOrderId() == null || dto.getOrderId() <= 0) {
-            throw new IllegalArgumentException("Order id must be positive");
-        }
-        if (dto.getItemId() == null || dto.getItemId() <= 0) {
-            throw new IllegalArgumentException("Item id must be positive");
+        if (dto == null || dto.getQuantity() == null || dto.getQuantity() < 1
+                || dto.getOrderId() == null || dto.getOrderId() <= 0
+                || dto.getItemId() == null || dto.getItemId() <= 0) {
+            throw new IllegalArgumentException("Invalid OrderItem DTO");
         }
     }
 
-    private void updateOrderTotalPrice(Order order) {
-        if (order == null) return;
-
-        List<OrderItem> items = orderItemRepository.findAllByOrderId(order.getId());
-
-        BigDecimal total = items.stream()
-                .filter(oi -> oi.getItem() != null && oi.getQuantity() != null)
-                .map(oi -> oi.getItem().getPrice().multiply(BigDecimal.valueOf(oi.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        order.setTotalPrice(total);
-    }
 }

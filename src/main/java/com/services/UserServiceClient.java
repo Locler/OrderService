@@ -35,8 +35,10 @@ public class UserServiceClient {
                         HttpStatusCode::isError,
                         clientResponse -> clientResponse.bodyToMono(String.class)
                                 .map(errorBody -> {
-                                    System.out.println("UserService returned error: " + errorBody);
-                                    return new RuntimeException("UserService error: " + errorBody);
+                                    log.info("UserService return error: {}", errorBody);
+                                    return new RuntimeException(
+                                            "UserService error (status " + clientResponse.statusCode().value() + "): " + errorBody
+                                    );
                                 })
                 )
                 .bodyToMono(UserInfoDto.class)

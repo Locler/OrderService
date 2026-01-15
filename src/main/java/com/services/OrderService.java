@@ -15,6 +15,7 @@ import com.mappers.OrderMapper;
 import com.repositories.ItemRep;
 import com.repositories.OrderRep;
 import com.specifications.OrderServiceSpecifications;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +30,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 
 @Service
+@Log4j2
 public class OrderService {
 
     private final OrderRep orderRepository;
@@ -56,7 +58,7 @@ public class OrderService {
         accessChecker.checkUserAccess(requesterId, requesterId, roles);
 
         UserInfoDto user = userServiceClient.getUserById(requesterId, requesterId, roles);
-        System.out.println("USER FROM USER SERVICE: " + user);
+        log.info("USER FROM USER SERVICE: {}", user);
 
         if (user == null || !Boolean.TRUE.equals(user.getActive())) {
             throw new IllegalStateException("Cannot create order for inactive or unknown user");

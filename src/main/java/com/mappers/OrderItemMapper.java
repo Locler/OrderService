@@ -3,8 +3,7 @@ package com.mappers;
 import com.dtos.request.OrderItemCreateUpdateDto;
 import com.dtos.response.OrderItemDto;
 import com.entities.OrderItem;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
+import org.mapstruct.*;
 
 import java.util.List;
 

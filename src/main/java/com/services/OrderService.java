@@ -8,6 +8,7 @@ import com.enums.OrderStatus;
 import com.mappers.OrderMapper;
 import com.repositories.OrderRep;
 import com.specifications.OrderServiceSpecifications;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+@Slf4j
 @Service
 public class OrderService {
 
@@ -49,6 +51,10 @@ public class OrderService {
 
 
         UserInfoDto user = userServiceClient.getUserByEmail(dto.getEmail(), authHeader);
+
+        log.info("User from UserService: {}", user);
+        log.info("User ID: {}", user != null ? user.getId() : null);
+
         if (user == null || user.getEmail() == null) {
             throw new RuntimeException("Cannot retrieve user info from UserService");
         }

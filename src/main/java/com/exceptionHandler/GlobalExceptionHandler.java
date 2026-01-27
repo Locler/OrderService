@@ -33,12 +33,6 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<?> handleOther(Exception ex) {
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Internal error: " + ex.getMessage());
-    }
-
-    @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleUserServiceException(Exception ex, WebRequest request) {
 
         HttpStatus status = getHttpStatus(ex);

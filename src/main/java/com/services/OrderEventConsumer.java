@@ -22,10 +22,18 @@ public class OrderEventConsumer {
 
         try {
             switch (event.getStatus()) {
-                case SUCCESS -> orderService.updateStatus(event.getOrderId(), OrderStatus.COMPLETED,
-                        0L, Set.of("SYSTEM")); // SYSTEM user для автоматической обработки
-                case FAILED -> orderService.updateStatus(event.getOrderId(), OrderStatus.CANCELLED,
-                        0L, Set.of("SYSTEM"));
+                case SUCCESS -> orderService.updateStatus(
+                        event.getOrderId(),
+                        OrderStatus.PAID,
+                        0L,
+                        Set.of("SYSTEM")
+                );
+                case FAILED -> orderService.updateStatus(
+                        event.getOrderId(),
+                        OrderStatus.CANCELLED,
+                        0L,
+                        Set.of("SYSTEM")
+                );
                 case NEW -> log.info("Payment NEW status, no order update needed");
             }
         } catch (Exception e) {

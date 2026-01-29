@@ -8,8 +8,8 @@ import java.util.Set;
 public final class OrderStatusTransitions {
 
     private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED = Map.of(
-            OrderStatus.NEW, Set.of(OrderStatus.PROCESSING, OrderStatus.CANCELLED),
-            OrderStatus.PROCESSING, Set.of(OrderStatus.COMPLETED),
+            OrderStatus.NEW, Set.of(OrderStatus.PAID, OrderStatus.CANCELLED),
+            OrderStatus.PAID, Set.of(OrderStatus.COMPLETED),
             OrderStatus.COMPLETED, Set.of(),
             OrderStatus.CANCELLED, Set.of()
     );

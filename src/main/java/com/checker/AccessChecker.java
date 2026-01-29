@@ -10,9 +10,10 @@ public class AccessChecker {
 
     public void checkAdminAccess(Set<String> roles) {
 
-        if (roles == null || !roles.contains("ROLE_ADMIN")) {
-            throw new SecurityException("Admin role required");
+        if (roles.contains("ROLE_ADMIN") || roles.contains("SYSTEM")) {
+            return;
         }
+        throw new SecurityException("Admin role required");
     }
 
     public void checkUserAccess(Long targetUserId, Long requesterId, Set<String> roles) {

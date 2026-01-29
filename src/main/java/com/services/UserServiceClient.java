@@ -63,7 +63,7 @@ public class UserServiceClient {
                     .build();
 
             UserInfoDto user = client.get()
-                    .uri("/{id}", userId)
+                    .uri("/users/{id}", userId)
                     .header("X-User-Id", requesterId.toString())
                     .header("X-User-Roles", String.join(",", roles))
                     .retrieve()

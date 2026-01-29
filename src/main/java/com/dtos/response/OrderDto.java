@@ -1,6 +1,7 @@
 package com.dtos.response;
 
 import com.enums.OrderStatus;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -21,6 +22,7 @@ public class OrderDto {
 
     @NotNull
     @DecimalMin(value = "0.0", message = "Total price must be >= 0")
+    @JsonProperty("total_price")
     private BigDecimal totalPrice;
 
     private Boolean deleted;

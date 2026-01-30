@@ -103,8 +103,7 @@ public class OrderService {
         order.setStatus(newStatus);
         orderRepository.save(order);
 
-        UserInfoDto user = userServiceClient.getUserById(order.getUserId(), requesterId, roles);
-        return new OrderWithUserDto(mapper.toDto(order), user);
+        return new OrderWithUserDto(mapper.toDto(order), null);
     }
 
     @Transactional(readOnly = true)

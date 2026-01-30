@@ -22,7 +22,12 @@ public class AccessChecker {
             throw new SecurityException("Roles are missing");
         }
 
-        if (roles.contains("ROLE_ADMIN")) return;
+        if (roles.contains("SYSTEM")) {
+            return;
+        }
+        if (roles.contains("ROLE_ADMIN")) {
+            return;
+        }
 
         if (roles.contains("ROLE_USER") && targetUserId.equals(requesterId)) return;
 

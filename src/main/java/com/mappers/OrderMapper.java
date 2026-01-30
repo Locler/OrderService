@@ -11,6 +11,7 @@ import java.util.List;
 public interface OrderMapper {
 
     @Mapping(source = "orderItems", target = "orderItems")
+    @Mapping(target = "totalPrice", source = "totalPrice")
     OrderDto toDto(Order order);
 
     @Mapping(target = "id", ignore = true)

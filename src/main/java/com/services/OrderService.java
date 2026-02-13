@@ -24,10 +24,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Log4j2
@@ -104,6 +102,17 @@ public class OrderService {
         orderRepository.save(order);
 
         return new OrderWithUserDto(mapper.toDto(order), null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderWithUserDto> getOrdersByUser(Long requesterId, Set<String> roles) {
+        accessChecker.checkUserAccess(requesterId, requesterId, roles); // обычный пользователь только свои
+
+        List<Order> orders = orderRepository.findAllByUserIdAndDeletedFalse(requesterId);
+
+        return orders.stream()
+                .map(order -> new OrderWithUserDto(mapper.toDto(order), null)) // user можно не подгружать
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

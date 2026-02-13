@@ -31,6 +31,17 @@ public class OrderController {
         return Arrays.stream(rolesHeader.split(",")).map(String::trim).collect(Collectors.toSet());
     }
 
+    @GetMapping("/my")
+    public ResponseEntity<List<OrderWithUserDto>> getOrdersByUser(
+            @RequestHeader("X-User-Id") Long requesterId,
+            @RequestHeader("X-User-Roles") String rolesHeader
+    ) {
+        Set<String> roles = parseRoles(rolesHeader);
+        List<OrderWithUserDto> myOrders = orderService.getOrdersByUser(requesterId, roles);
+        return ResponseEntity.ok(myOrders);
+    }
+
+
     @GetMapping("/{id}")
     public ResponseEntity<OrderWithUserDto> getOrder(
             @PathVariable Long id,
@@ -40,6 +51,7 @@ public class OrderController {
         Set<String> roles = parseRoles(rolesHeader);
         return ResponseEntity.ok(orderService.getOrderById(id, requesterId, roles));
     }
+
 
     @GetMapping
     public ResponseEntity<Page<OrderWithUserDto>> getAllOrders(
